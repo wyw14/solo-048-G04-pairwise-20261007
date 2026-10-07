@@ -55,6 +55,18 @@ func (r *FlowReceipts) Confirmed(stationID, exchangerID, operationID string) boo
 	return false
 }
 
+func (r *FlowReceipts) Latest(stationID, exchangerID, operationID string) (FlowReceipt, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for index := len(r.receipts) - 1; index >= 0; index-- {
+		receipt := r.receipts[index]
+		if receipt.StationID == stationID && receipt.ExchangerID == exchangerID && receipt.OperationID == operationID {
+			return receipt, true
+		}
+	}
+	return FlowReceipt{}, false
+}
+
 func (r *FlowReceipts) ForStation(stationID string) []FlowReceipt {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

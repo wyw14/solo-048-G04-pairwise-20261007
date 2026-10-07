@@ -75,6 +75,12 @@ func (f *File[T]) saveLocked(value T) error {
 	return nil
 }
 
+func (f *File[T]) Save(value T) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.saveLocked(value)
+}
+
 func (f *File[T]) Update(change func(*T) error) (T, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()

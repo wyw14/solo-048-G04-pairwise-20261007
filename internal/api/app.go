@@ -16,6 +16,7 @@ import (
 	"heatpulse/internal/recovery"
 	"heatpulse/internal/station"
 	"heatpulse/internal/store"
+	"heatpulse/internal/switchover"
 	"heatpulse/internal/telemetry"
 	"heatpulse/internal/valve"
 )
@@ -59,6 +60,7 @@ type App struct {
 	Publisher            *dispatch.Publisher
 	DispatchBuffer       *dispatch.Buffer
 	StationCommands      *station.CommandService
+	Switchover           *switchover.Service
 	Reconnector          *recovery.Reconnector
 	ZoneRecovery         *recovery.ZoneRecovery
 	Manual               *station.ManualService
@@ -128,6 +130,11 @@ func NewApp(dataDirectory string) (*App, error) {
 	app.SnapshotsBuilder = telemetry.NewSnapshotBuilder(app.Telemetry)
 	app.LeakProtection = protection.NewLeakProtection(app.LeakDetector)
 	app.ExchangerSwitch = exchanger.NewSwitchService(stations, flowReceipts, primary)
+	switchoverService, err := switchover.NewService(dataDirectory, stations, app.Latches, warmup, flowReceipts, primary, recorder)
+	if err != nil {
+		return nil, err
+	}
+	app.Switchover = switchoverService
 	app.Publisher = dispatch.NewPublisher(planner, targets, recorder)
 	app.Reconnector = recovery.NewReconnector(dispatchBuffer, stations, stationCommands, recorder)
 	app.ZoneRecovery = recovery.NewZoneRecovery(networkState, networkRegistry, warmup, pressure)
