@@ -19,6 +19,12 @@ func (r FlowReceipt) Matches(stationID, exchangerID, operationID string) bool {
 	return r.StationID == stationID && r.ExchangerID == exchangerID && r.OperationID == operationID && r.Stable && r.LitersSecond > 0
 }
 
+// MatchesDrain reports a stable zero-flow receipt proving the exchanger has
+// been fully drained for the given operation.
+func (r FlowReceipt) MatchesDrain(stationID, exchangerID, operationID string) bool {
+	return r.StationID == stationID && r.ExchangerID == exchangerID && r.OperationID == operationID && r.Stable && r.LitersSecond == 0
+}
+
 type FlowReceipts struct {
 	mu       sync.RWMutex
 	receipts []FlowReceipt
@@ -51,6 +57,22 @@ func (r *FlowReceipts) Confirmed(stationID, exchangerID, operationID string) boo
 		if r.receipts[index].Matches(stationID, exchangerID, operationID) {
 			return true
 		}
+	}
+	return false
+}
+
+// DrainConfirmed reports the latest drain evidence for an exchanger: the most
+// recent receipt must be a stable zero-flow one. A later positive-flow receipt
+// invalidates an earlier drain confirmation.
+func (r *FlowReceipts) DrainConfirmed(stationID, exchangerID, operationID string) bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for index := len(r.receipts) - 1; index >= 0; index-- {
+		receipt := r.receipts[index]
+		if receipt.StationID != stationID || receipt.ExchangerID != exchangerID || receipt.OperationID != operationID {
+			continue
+		}
+		return receipt.MatchesDrain(stationID, exchangerID, operationID)
 	}
 	return false
 }

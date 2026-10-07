@@ -44,6 +44,20 @@ func (s *PrimaryService) Open(stationID, exchangerID, operationID string, flowCo
 	return admission, nil
 }
 
+func (s *PrimaryService) Close(stationID, exchangerID, operationID string) (PrimaryAdmission, error) {
+	if stationID == "" || exchangerID == "" || operationID == "" {
+		return PrimaryAdmission{}, fmt.Errorf("primary admission identity is incomplete")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	admission := PrimaryAdmission{
+		StationID: stationID, ExchangerID: exchangerID, OperationID: operationID,
+		Open: false, At: time.Now().UTC(),
+	}
+	s.admissions[primaryKey(stationID, exchangerID)] = admission
+	return admission, nil
+}
+
 func (s *PrimaryService) Admission(stationID, exchangerID string) (PrimaryAdmission, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()

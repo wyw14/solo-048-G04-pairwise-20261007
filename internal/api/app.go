@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"time"
 
@@ -49,6 +50,7 @@ type App struct {
 	Latches              *protection.LatchStore
 	Frost                *protection.FrostProtection
 	ExchangerSwitch      *exchanger.SwitchService
+	Switchovers          *exchanger.Orchestrator
 	Circulation          *exchanger.CirculationRunner
 	Antifreeze           *protection.Antifreeze
 	Warmup               *exchanger.WarmupService
@@ -128,6 +130,13 @@ func NewApp(dataDirectory string) (*App, error) {
 	app.SnapshotsBuilder = telemetry.NewSnapshotBuilder(app.Telemetry)
 	app.LeakProtection = protection.NewLeakProtection(app.LeakDetector)
 	app.ExchangerSwitch = exchanger.NewSwitchService(stations, flowReceipts, primary)
+	switchoverStore := exchanger.NewSwitchoverStore(dataDirectory)
+	switchovers, err := exchanger.NewOrchestrator(stations, flowReceipts, primary, warmup,
+		newStationGuard(app.Latches, app.Protection), switchoverStore, recorder)
+	if err != nil {
+		return nil, fmt.Errorf("restore switchovers: %w", err)
+	}
+	app.Switchovers = switchovers
 	app.Publisher = dispatch.NewPublisher(planner, targets, recorder)
 	app.Reconnector = recovery.NewReconnector(dispatchBuffer, stations, stationCommands, recorder)
 	app.ZoneRecovery = recovery.NewZoneRecovery(networkState, networkRegistry, warmup, pressure)
